@@ -4,7 +4,7 @@
 
 using namespace std;
 
-const size_t kMaxCudnnWorkspace_ = 1024 * 1024 * 10;
+const size_t kMaxCudnnWorkspace = 1024 * 1024 * 10;
 int kMaxDataSize                 = 1024 * 1024 * 1024;
 int kMaxWeightSize               = 7 * 7 * 512 * 512;
 cudnnHandle_t cudnn_handle_g;
@@ -98,9 +98,9 @@ cudnnDataType_t CudnnConv::conv_type() {
     }
 }
 
-void CudnnConv::InitAlgo() {
+void CudnnConv::InitAlgo(cudnnHandle_t handle) {
     cudnnStatus_t sts;
-    sts = cudnnGetConvolutionForwardAlgorithm(cudnn_handle_, 
+    sts = cudnnGetConvolutionForwardAlgorithm(handle, 
                                               input_desc_,
                                               weight_desc_,
                                               conv_desc_,
@@ -109,9 +109,36 @@ void CudnnConv::InitAlgo() {
                                               0,
                                               &algo_);
     CHECK_EXIT(sts != CUDNN_STATUS_SUCCESS, "cudnnGetConvolutionForwardAlgorithm");
+    sts = cudnnGetConvolutionForwardWorkspaceSize(handle,
+                                                  input_desc_,
+                                                  weight_desc_,
+                                                  conv_desc_,
+                                                  output_desc_,
+                                                  algo_,
+                                                  &cudnn_workspace_size_);
+    CHECK_EXIT(sts != CUDNN_STATUS_SUCCESS, "cudnnGetConvolutionForwardWorkspaceSize");
 }
-void CudnnConv::Run() {
-    cout << "Run................." << endl;
+
+void CudnnConv::Run(void* input,
+                    void* weight,
+                    void* output,
+                    void* cudnn_workspace,
+                    cudnnHandle_t handle) {
+    float alpha = 1.0f;
+    float beta = 1.0f;
     cudnnStatus_t sts;
-//    sts = cudnnConvolutionForward();
+    sts = cudnnConvolutionForward(handle,
+                                  &alpha,
+                                  input_desc_,
+                                  input,
+                                  weight_desc_,
+                                  weight,
+                                  conv_desc_,
+                                  algo_,
+                                  cudnn_workspace,
+                                  cudnn_workspace_size_,
+                                  &beta,
+                                  output_desc_,
+                                  output);
+    CHECK_EXIT(sts != CUDNN_STATUS_SUCCESS, "cudnnConvolutionForward");
 }

@@ -3,7 +3,11 @@
 
 #include <cudnn.h>
 #include <cuda_runtime.h>
+#include <iostream>
 #include "basic.h"
+
+using std::cout;
+using std::endl;
 
 enum DataType {
     kDataTypeFloat = 0,
@@ -11,15 +15,15 @@ enum DataType {
     kDataTypeInt8 = 2,
 };
 
-extern const size_t kMaxCudnnWorkspace_;
+extern const size_t kMaxCudnnWorkspace;
 extern int kMaxDataSize;
 extern int kMaxWeightSize;
 extern cudnnHandle_t cudnn_handle_g;
 
-extern void* input_data_g_;
-extern void* output_data_g_;
-extern void* weight_data_g_;
-extern void* cudnn_workspace_g_;
+extern void* input_data_g;
+extern void* output_data_g;
+extern void* weight_data_g;
+extern void* cudnn_workspace_g;
 
 #define CHECK_EXIT(sts, str) \
     if (sts) \
@@ -43,9 +47,14 @@ public:
               cudnnTensorFormat_t weight_format = CUDNN_TENSOR_NCHW,
               cudnnTensorFormat_t output_format = CUDNN_TENSOR_NCHW);
     ~CudnnConv() {
+        cout << "~CudnnConv().." << endl;
     }
 
-    void Run();
+    void Run(void* input,
+             void* weight,
+             void* output,
+             void* cudnn_workspace,
+             cudnnHandle_t handle);
 
     int output_h() {
         int kernel_extent = dilation_h_ * (kernel_h_ - 1) + 1;
@@ -62,7 +71,7 @@ public:
         return kernel_n_;
     }
     cudnnDataType_t conv_type();
-    void InitAlgo();
+    void InitAlgo(cudnnHandle_t handle);
     cudnnConvolutionFwdAlgo_t algo() {
         return algo_;
     }
@@ -130,6 +139,7 @@ private:
     cudnnConvolutionDescriptor_t conv_desc_;
 
     void* cudnn_workspace_;
+    size_t cudnn_workspace_size_;
     cudnnHandle_t cudnn_handle_;
 };
 
