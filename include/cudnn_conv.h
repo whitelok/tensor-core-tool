@@ -9,6 +9,8 @@
 using std::cout;
 using std::endl;
 
+typedef short Half;
+
 enum DataType {
     kDataTypeFloat = 0,
     kDataTypeHalf = 1,
@@ -63,6 +65,9 @@ public:
     int output_w() {
         int kernel_extent = dilation_w_ * (kernel_w_ - 1) + 1;
         return (input_w_ + 2 * pad_w_ - kernel_extent) / stride_w_ + 1;
+    }
+    int output_size() {
+        return output_n() * output_c() * output_h() * output_w();
     }
     int output_n() {
         return input_n_;

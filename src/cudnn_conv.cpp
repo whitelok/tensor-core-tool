@@ -5,8 +5,8 @@
 using namespace std;
 
 const size_t kMaxCudnnWorkspace = 1024 * 1024 * 10;
-int kMaxDataSize                 = 1024 * 1024 * 1024;
-int kMaxWeightSize               = 7 * 7 * 512 * 512;
+int kMaxDataSize                 = 512 * 512 * 128;
+int kMaxWeightSize               = 7 * 7 * 256 * 256;
 cudnnHandle_t cudnn_handle_g;
 
 CudnnConv::CudnnConv(int in_n, int in_c, int in_h, int in_w,
@@ -67,6 +67,7 @@ CudnnConv::CudnnConv(int in_n, int in_c, int in_h, int in_w,
                                            output_w(), 
                                            1);
         CHECK_EXIT(sts != CUDNN_STATUS_SUCCESS, "cudnnSetTensor4dDescriptorEx");
+        cudnnDataType_t conv_t = conv_type();
         sts = cudnnSetConvolution2dDescriptor(conv_desc_, 
                                               pad_h_,
                                               pad_w_,
@@ -75,7 +76,7 @@ CudnnConv::CudnnConv(int in_n, int in_c, int in_h, int in_w,
                                               dilation_h_,
                                               dilation_w_,
                                               CUDNN_CROSS_CORRELATION,
-                                              conv_type());
+                                              conv_t);
         CHECK_EXIT(sts != CUDNN_STATUS_SUCCESS, "cudnnSetConvolution2dDescriptor");
         sts = cudnnSetFilter4dDescriptor(weight_desc_, 
                                          weight_type_,
@@ -93,6 +94,10 @@ cudnnDataType_t CudnnConv::conv_type() {
         (output_type_ == CUDNN_DATA_FLOAT) &&
         (weight_type_ == CUDNN_DATA_FLOAT)) {
         return CUDNN_DATA_FLOAT;
+    } else if ((input_type_ == CUDNN_DATA_HALF) &&
+            (output_type_ == CUDNN_DATA_HALF) && 
+             (weight_type_ == CUDNN_DATA_HALF)) {
+        return CUDNN_DATA_HALF;
     } else {
         CHECK_EXIT(true, "conv_type not support");
     }
@@ -117,6 +122,7 @@ void CudnnConv::InitAlgo(cudnnHandle_t handle) {
                                                   algo_,
                                                   &cudnn_workspace_size_);
     CHECK_EXIT(sts != CUDNN_STATUS_SUCCESS, "cudnnGetConvolutionForwardWorkspaceSize");
+    CHECK_EXIT(cudnn_workspace_size_ > kMaxCudnnWorkspace, "cudnn_workspace_size_ > kMaxCudnnWorkspace");
 }
 
 void CudnnConv::Run(void* input,

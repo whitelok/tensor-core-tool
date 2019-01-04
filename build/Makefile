@@ -1,5 +1,6 @@
 TARGET  	= CUDNN_TEST
 CC 			= g++
+NVCC		= /usr/local/cuda-10.0/bin/nvcc
 
 CODE_DIR 	= ../
 LIB_DIR		= ../lib
@@ -19,8 +20,11 @@ IFLAGS      = -I$(INC_DIR)\
 	          -I$(CUDA_INC_DIR)
 
 OPT_FLAGS 	= -O3
+ifeq ($(DEBUG), 1)
+OPT_FLAGS 	= -g 
+endif
 CFLAGS  	= $(IFLAGS) -fPIC -Wall $(OPT_FLAGS) -std=c++11
-NVCCFLAGS 	= $(IFLAGS) -fPIC $(OPT_FLAGS) -std=c++11
+NVCCFLAGS 	= $(IFLAGS) -Xcompiler -fPIC $(OPT_FLAGS) -std=c++11
 
 LDFLAGS     =  -L$(CUDA_LIB_DIR) -lcudart -lcudnn 
 
@@ -35,7 +39,7 @@ $(TARGET):	$(OBJS)
 	$(CC) -o $(TARGET) $^ $(LDFLAGS)
 
 %.o: %.cu $(INCS)
-	$(NVCC) -c $(CFLAGS) $< 
+	$(NVCC) -c $(NVCCFLAGS) $< 
 
 %.o: %.cpp $(INCS)
 	$(CC) -c $(CFLAGS) $< 
