@@ -113,6 +113,7 @@ void CudnnConv::InitAlgo(cudnnHandle_t handle) {
                                               CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
                                               0,
                                               &algo_);
+    cout << "algo_: " << algo_ << endl;
     CHECK_EXIT(sts != CUDNN_STATUS_SUCCESS, "cudnnGetConvolutionForwardAlgorithm");
     sts = cudnnGetConvolutionForwardWorkspaceSize(handle,
                                                   input_desc_,
