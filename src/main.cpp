@@ -1,8 +1,15 @@
+#include <algorithm> 
+#include <cctype>
+#include <locale>
 #include <iostream>
 #include <cstring>
 #include <cmath>
+#include <fstream>
+#include <string>
+#include <vector>
 #include "cudnn_conv.h"
 #include "profile.h"
+using namespace std;
 
 void* input_data_g = nullptr;
 void* output_data_g = nullptr;
@@ -11,6 +18,175 @@ void* cudnn_workspace_g = nullptr;
 void* input_data_host_g = nullptr;
 void* output_data_host_g = nullptr;
 void* weight_data_host_g = nullptr;
+
+extern cudnnMathType_t math_type;
+extern bool int8_ext;
+
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
+        return !std::isspace(ch);
+    }));
+}
+
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
+// trim from both ends (in place)
+static inline void trim(std::string &s) {
+    ltrim(s);
+    rtrim(s);
+}
+
+// trim from start (copying)
+static inline std::string ltrim_copy(std::string s) {
+    ltrim(s);
+    return s;
+}
+
+// trim from end (copying)
+static inline std::string rtrim_copy(std::string s) {
+    rtrim(s);
+    return s;
+}
+
+// trim from both ends (copying)
+static inline std::string trim_copy(std::string s) {
+    trim(s);
+    return s;
+}
+
+static cudnnDataType_t GetType(int type) {
+    if (type == 0) {
+        return CUDNN_DATA_FLOAT;
+    } else if (type == 1){
+        return CUDNN_DATA_HALF;
+    } else if (type == 2) {
+        if (int8_ext) {
+            return CUDNN_DATA_INT8x4;
+        } else {
+            return CUDNN_DATA_INT8;
+        }
+    } else {
+        CHECK_EXIT(true, "type error");
+    }
+}
+static cudnnTensorFormat_t GetFormat(int format) {
+    if (format == 0) {
+        return CUDNN_TENSOR_NCHW;
+    } else if (format == 1) {
+        if (int8_ext) {
+            return CUDNN_TENSOR_NCHW_VECT_C;
+        } else {
+            return CUDNN_TENSOR_NHWC;
+        }
+    } else {
+        CHECK_EXIT(true, "format error");
+    }
+}
+class ConvConfig {
+public:
+    ConvConfig (string line) {
+        int i_type, w_type, o_type, i_format, w_format, o_format, v;
+        sscanf(line.data(),
+               "%d %d %d %d\
+               %d %d %d\
+               %d %d\
+               %d %d\
+               %d %d\
+               %d\
+               %d %d %d\
+               %d %d %d\
+               %d", 
+               &input_n, &input_c, &input_h, &input_w,
+               &k_n, &k_h, &k_w,
+               &p_h, &p_w,
+               &s_h, &s_w,
+               &d_h, &d_w,
+               &group,
+               &i_type, &w_type, &o_type,
+               &i_format, &w_format, &o_format,
+               &v
+               );
+
+         k_c = input_c;
+         input_type = GetType(i_type);
+         weight_type = GetType(w_type);
+         output_type = GetType(o_type);
+
+         input_format = GetFormat(i_format);
+         weight_format = GetFormat(w_format);
+         output_format = GetFormat(o_format);
+
+         if (v == 0) {
+             val = false;
+         } else {
+             val = true;
+         }
+    }
+
+    friend ostream& operator <<(ostream& os, ConvConfig& config) {
+        os << "Config: " << 
+            config.input_n << ", " << config.input_c << ", " << config.input_h << ", " << config.input_w << ", " << 
+            config.k_n << ", " << config.k_c << ", " << config.k_h << ", " << config.k_w << ", " << 
+            config.p_h << ", " << config.p_w << ", " << 
+            config.s_h << ", " << config.s_w << ", " <<
+            config.d_h << ", " << config.d_w << ", " << 
+            config.group << ", " << 
+            config.input_type << ", " << config.weight_type << ", " << config.output_type << ", " << 
+            config.input_format << ", " << config.weight_format << ", " << config.output_format << ", " <<
+            config.val << endl;
+        return os;
+    }
+
+
+
+
+	int input_n;
+    int input_c;
+    int input_h;
+    int input_w;
+    int k_n;
+    int k_c;
+    int k_h;
+    int k_w;
+    int p_h;
+    int p_w;
+    int s_h;
+    int s_w;
+    int d_h;
+    int d_w;
+    int group;
+    cudnnDataType_t input_type;
+    cudnnDataType_t weight_type;
+    cudnnDataType_t output_type;
+    cudnnTensorFormat_t input_format;
+    cudnnTensorFormat_t weight_format;
+    cudnnTensorFormat_t output_format;
+    bool val;
+};
+
+vector<ConvConfig> ReadConvConfig(string config_path) {
+    vector<ConvConfig> configs;
+    string line;
+    ifstream infile; 
+    infile.open(config_path.data());   
+    CHECK_EXIT(!infile.is_open(), "file not open")
+
+    while (getline(infile, line)) {
+	    trim(line);
+        if (line.data()[0] == '#') continue;
+        if (line.size() == 0) continue;
+        cout << line << endl;
+        ConvConfig config(line);
+        configs.push_back(config);
+    }
+    return configs;
+}
 
 #define THRESHOLD (0.001)
 
@@ -92,8 +268,13 @@ void TestCudnnConv(int input_n, int input_c, int input_h, int input_w,
 
     conv.InitAlgo(cudnn_handle_g);
 
+
     OPT_PROFILE_TIME_RESET(0);
+#ifdef NVPROFILE
+    int profile_count = 1;
+#else
     int profile_count = 100;
+#endif
     OPT_PROFILE_TIME_START(0);
     for (int i = 0; i < profile_count; i++) {
         conv.Run(input_data_g, weight_data_g, output_data_g, cudnn_workspace_g, cudnn_handle_g);
@@ -183,9 +364,29 @@ void ReleaseData() {
 int main() {
     cout << "cudnn_test..........." << endl;
     Allocdata();
+    vector<ConvConfig> configs = ReadConvConfig("../data/config.txt");
+
+    for (auto config: configs) {
+        //cout << config;
+        TestCudnnConv(config.input_n, config.input_c, config.input_h, config.input_w,
+                      config.k_n, config.k_c, config.k_h, config.k_w,
+                      config.p_h, config.p_w,
+                      config.s_h, config.s_w,
+                      config.d_h, config.d_w,
+                      config.group,
+                      config.input_type,
+                      config.weight_type,
+                      config.output_type,
+                      config.input_format,
+                      config.weight_format,
+                      config.output_format,
+                      config.val);
+    }
+
+#if 0
     TestCudnnConv(1, 128, 512, 512,
-                  64, 128, 7, 7,
-                  1, 1,
+                  64, 128, 5, 5,
+                  2, 2,
                   1, 1, 1, 1,
                   1,
                   CUDNN_DATA_FLOAT,
@@ -197,8 +398,8 @@ int main() {
                   false);
 
     TestCudnnConv(1, 128, 512, 512,
-                  64, 128, 7, 7,
-                  1, 1,
+                  64, 128, 5, 5,
+                  2, 2,
                   1, 1, 1, 1,
                   1,
                   CUDNN_DATA_HALF,
@@ -208,6 +409,20 @@ int main() {
                   CUDNN_TENSOR_NCHW,
                   CUDNN_TENSOR_NCHW,
                   false);
+    TestCudnnConv(1, 128, 512, 512,
+                  64, 128, 5, 5,
+                  2, 2,
+                  1, 1, 1, 1,
+                  1,
+                  CUDNN_DATA_INT8,
+                  CUDNN_DATA_INT8,
+                  CUDNN_DATA_INT8,
+                  CUDNN_TENSOR_NHWC,
+                  CUDNN_TENSOR_NHWC,
+                  CUDNN_TENSOR_NHWC,
+                  false);
+#endif
+
     ReleaseData();
     return 0;
 }

@@ -49,7 +49,7 @@ public:
               cudnnTensorFormat_t weight_format = CUDNN_TENSOR_NCHW,
               cudnnTensorFormat_t output_format = CUDNN_TENSOR_NCHW);
     ~CudnnConv() {
-        cout << "~CudnnConv().." << endl;
+        //cout << "~CudnnConv().." << endl;
     }
 
     void Run(void* input,
