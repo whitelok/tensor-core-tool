@@ -19,8 +19,9 @@ CUDNN_CONVOLUTION_FWD_ALGO_COUNT                 = 8
 ***************************************************/
 
 bool int8_ext = false;
-cudnnMathType_t math_type = CUDNN_TENSOR_OP_MATH;
-//cudnnMathType_t math_type = CUDNN_DEFAULT_MATH;
+// cudnnMathType_t math_type = CUDNN_TENSOR_OP_MATH;
+// cudnnMathType_t math_type = CUDNN_DEFAULT_MATH;
+cudnnMathType_t math_type = CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION;
 
 const size_t kMaxCudnnWorkspace = 1024 * 1024 * 100;
 int kMaxDataSize = 512 * 512 * 128;
@@ -245,7 +246,7 @@ void CudnnConv::Run(void* input,
     float alpha = 1.0f;
     float beta = 1.0f;
     cudnnStatus_t sts;
-    //sts = cudnnSetConvolutionMathType(conv_desc_, math_type);
+    sts = cudnnSetConvolutionMathType(conv_desc_, math_type);
     //CHECK_EXIT(sts != CUDNN_STATUS_SUCCESS, "cudnnSetConvolutionMathType");
     sts = cudnnConvolutionForward(handle,
                                   &alpha,

@@ -366,24 +366,25 @@ int main() {
     Allocdata();
     vector<ConvConfig> configs = ReadConvConfig("../data/config.txt");
 
-    for (auto config: configs) {
-        //cout << config;
-        TestCudnnConv(config.input_n, config.input_c, config.input_h, config.input_w,
-                      config.k_n, config.k_c, config.k_h, config.k_w,
-                      config.p_h, config.p_w,
-                      config.s_h, config.s_w,
-                      config.d_h, config.d_w,
-                      config.group,
-                      config.input_type,
-                      config.weight_type,
-                      config.output_type,
-                      config.input_format,
-                      config.weight_format,
-                      config.output_format,
-                      config.val);
-    }
+    // for (auto config: configs) {
+    //     //cout << config;
+    //     TestCudnnConv(config.input_n, config.input_c, config.input_h, config.input_w,
+    //                   config.k_n, config.k_c, config.k_h, config.k_w,
+    //                   config.p_h, config.p_w,
+    //                   config.s_h, config.s_w,
+    //                   config.d_h, config.d_w,
+    //                   config.group,
+    //                   config.input_type,
+    //                   config.weight_type,
+    //                   config.output_type,
+    //                   config.input_format,
+    //                   config.weight_format,
+    //                   config.output_format,
+    //                   config.val);
+    // }
 
-#if 0
+#if 1
+cout << "cudnn_test..........." << endl;
     TestCudnnConv(1, 128, 512, 512,
                   64, 128, 5, 5,
                   2, 2,
@@ -397,30 +398,30 @@ int main() {
                   CUDNN_TENSOR_NCHW,
                   false);
 
-    TestCudnnConv(1, 128, 512, 512,
-                  64, 128, 5, 5,
-                  2, 2,
-                  1, 1, 1, 1,
-                  1,
-                  CUDNN_DATA_HALF,
-                  CUDNN_DATA_HALF,
-                  CUDNN_DATA_HALF,
-                  CUDNN_TENSOR_NCHW,
-                  CUDNN_TENSOR_NCHW,
-                  CUDNN_TENSOR_NCHW,
-                  false);
-    TestCudnnConv(1, 128, 512, 512,
-                  64, 128, 5, 5,
-                  2, 2,
-                  1, 1, 1, 1,
-                  1,
-                  CUDNN_DATA_INT8,
-                  CUDNN_DATA_INT8,
-                  CUDNN_DATA_INT8,
-                  CUDNN_TENSOR_NHWC,
-                  CUDNN_TENSOR_NHWC,
-                  CUDNN_TENSOR_NHWC,
-                  false);
+    // TestCudnnConv(1, 128, 512, 512,
+    //               64, 128, 5, 5,
+    //               2, 2,
+    //               1, 1, 1, 1,
+    //               1,
+    //               CUDNN_DATA_HALF,
+    //               CUDNN_DATA_HALF,
+    //               CUDNN_DATA_HALF,
+    //               CUDNN_TENSOR_NCHW,
+    //               CUDNN_TENSOR_NCHW,
+    //               CUDNN_TENSOR_NCHW,
+    //               false);
+    // TestCudnnConv(1, 128, 512, 512,
+    //               64, 128, 5, 5,
+    //               2, 2,
+    //               1, 1, 1, 1,
+    //               1,
+    //               CUDNN_DATA_INT8,
+    //               CUDNN_DATA_INT8,
+    //               CUDNN_DATA_INT8,
+    //               CUDNN_TENSOR_NHWC,
+    //               CUDNN_TENSOR_NHWC,
+    //               CUDNN_TENSOR_NHWC,
+    //               false);
 #endif
 
     ReleaseData();
